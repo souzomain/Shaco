@@ -17,6 +17,11 @@ This is the commands that the agent support:
 
 # Configuration/Compilation
 
+Clone
+
+```
+git clone --recurse-submodules https://github.com/souzomain/Shaco.git
+```
 
 While I don't integrate the agent compilation in havoc, you can compile using cmake
 
