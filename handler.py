@@ -100,7 +100,7 @@ class CommandUpload(Command):
         Task = Packer()
         Task.add_int32( self.CommandId )
         Task.add_str( arguments['remotefile'] )
-        Task.add_data( b64decode(arguments['localfile']) )
+        Task.add_data64( b64decode(arguments['localfile']) )
         return Task.get_buffer()
 
 class CommandCheckin(Command):

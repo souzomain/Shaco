@@ -198,9 +198,9 @@ PPACKER pwd_command(uint8_t *args){
 //TODO: in get data is used int32, limits the file size....
 PPACKER upload_command(uint8_t *args){
     size_t offset = 0;
-    size_t data_len = 0;
+    uint64_t data_len = 0;
     char *filepath = packer_get_string(args,&offset);
-    uint8_t *data = packer_get_data(args, &data_len, &offset);
+    uint8_t *data = packer_get_data64(args, &data_len, &offset);
     if(!filepath || !data) { MSG("Can't download the file"); return NULL;}
 
     MSG("Trying download remote file to path: %s | len: %zu", filepath, data_len);
@@ -215,7 +215,8 @@ PPACKER upload_command(uint8_t *args){
 }
 
 PPACKER exit_command(uint8_t *args){
-    _exit(0);
+    PSETTINGS cfg = get_settings();
+    cfg->quit = true;
     return NULL;
 }
 
