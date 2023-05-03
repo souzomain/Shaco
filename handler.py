@@ -189,7 +189,7 @@ class Shaco(AgentType):
 
     Commands = [
         CommandShell(),
-        CommandCd(),
+        #        CommandCd(), #fix error in shaco to change directory
         CommandPwd(),
         CommandUpload(),
         CommandCheckin(),
