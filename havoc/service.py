@@ -1,6 +1,4 @@
 import base64
-from cgi import print_form
-
 from traceback import print_exc
 from havoc.agent import AgentType
 from havoc.externalc2 import ExternalC2

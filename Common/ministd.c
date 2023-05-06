@@ -1,6 +1,6 @@
 #include "ministd.h"
 
-u32 StringCompare( const char *String1, const char *String2 )
+int StringCompare( const char *String1, const char *String2 )
 {
     for (; *String1 == *String2; String1++, String2++)
     {
@@ -35,7 +35,7 @@ size_t StringLength(char *String)
 
 
 
-void MemSet(void *Destination, u32 Val, size_t Size)
+void MemSet(void *Destination, int Val, size_t Size)
 {
     unsigned long * Dest = ( unsigned long * )Destination;
     size_t Count = Size / sizeof( unsigned long );
@@ -48,28 +48,16 @@ void MemSet(void *Destination, u32 Val, size_t Size)
     }
 }
 
-u32 MemCompare( void *s1, void *s2, u32 len)
+int MemCompare( const void* s1, const void* s2, size_t n)
 {
-    u8 * p = s1;
-    u8 *q = s2;
-    u32 charCompareStatus = 0;
+    const unsigned char* p1 = s1;
+    const unsigned char* p2 = s2;
 
-    if (s1 == s2)
-        return charCompareStatus;
-
-    while (len > 0)
-    {
-        if (*p != *q)
-        {
-            charCompareStatus = (*p >*q)?1:-1;
-            break;
-        }
-        len--;
-        p++;
-        q++;
-    }
-    return charCompareStatus;
-}
+    for (size_t i = 0; i < n; i++) 
+        if (p1[i] != p2[i]) 
+            return (p1[i] < p2[i]) ? -1 : 1;
+    
+    return 0;}
 
 void CopyMemory(void *dest, const void *src, size_t n) {
     char *cdest = (char *)dest;
@@ -100,6 +88,34 @@ char* StrStr(const char* haystack, const char* needle) {
         if (*n == '\0') 
             return (char*) current;
 
+        current++;
+    }
+
+    return NULL; 
+}
+
+char* StrStrN(const char* haystack, const char* needle, size_t *size) {
+    if (haystack == NULL || needle == NULL)
+        return NULL;
+
+    if (*needle == '\0'){
+        if(size != NULL) *size = 0;
+        return (char*) haystack;
+    }
+    const char* current = haystack;
+    while (*current != '\0') {
+        const char* h = current;
+        const char* n = needle;
+
+        while (*h == *n && *h != '\0') {
+            h++;
+            n++;
+        }
+
+        if (*n == '\0') {
+            if(size != NULL) *size = current - haystack;
+            return (char*) current;
+        }
         current++;
     }
 

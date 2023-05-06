@@ -1,20 +1,10 @@
 #include "Protect.h"
 
-#include <stdlib.h>
 #include <sys/ptrace.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
-
-#define RANDOM_CONSTANT (((unsigned)(__TIME__[0]) ^ (unsigned)(__DATE__[0])) | \
-                         ((unsigned)(__TIME__[1]) ^ (unsigned)(__DATE__[1])) | \
-                         ((unsigned)(__TIME__[3]) ^ (unsigned)(__DATE__[3])) | \
-                         ((unsigned)(__TIME__[4]) ^ (unsigned)(__DATE__[4])) | \
-                         ((unsigned)(__TIME__[6]) ^ (unsigned)(__DATE__[6])) | \
-                         ((unsigned)(__TIME__[7]) ^ (unsigned)(__DATE__[7])))
-
-//const unsigned my_random_constant = RANDOM_CONSTANT;
 
 
 bool check_for_debug_libraries() {
@@ -57,24 +47,14 @@ bool check_for_breakpoint(){
     return false;
 }
 
-bool is_debugged(){
+bool is_safe(){
     return ((ptrace(PTRACE_TRACEME, 0, 1, 0) == -1) || check_for_breakpoint() || check_for_errno() || check_for_debug_libraries());
 }
 
-//TODO: implement
-bool is_sandboxed(){
-    return false;
-}
-
-//TODO: implement
-bool is_analysis(){
-    return false;
-}
 
 bool is_safe_to_run(){
 #ifdef DEBUG
     return true;
 #endif
-    unsetenv("LD_PRELOAD");
-    return (!is_debugged() && !is_analysis() && !is_sandboxed());
+    return (!is_safe());
 }

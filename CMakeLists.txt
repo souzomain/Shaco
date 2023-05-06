@@ -1,15 +1,24 @@
 cmake_minimum_required(VERSION 3.0)
 project(shaco C)
 
-if( DEFINED USE_SSL)
-set(OPENSSL_USE_STATIC_LIBS TRUE)
-find_package(OpenSSL REQUIRED)
-add_compile_definitions(USE_SSL)
-endif()
+set(CMAKE_C_COMPILER clang)
 
+if( NOT DEFINED COMPILE_ARCH)
+    set(COMPILE_ARCH "x64")
+endif()
 
 if(NOT DEFINED CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
+endif()
+
+
+if(COMPILE_ARCH STREQUAL "x86")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
+elseif(COMPILE_ARCH STREQUAL "x64")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64")
+elseif(COMPILE_ARCH STREQUAL "arm")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target armv7a-linux-gnueabihf -march=armv7-a")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -target armv7a-linux-gnueabihf")
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
@@ -19,11 +28,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     add_compile_definitions(DEBUG)
 else()
     message("Compiling in release mode")
-    #error on compile -static: openssl
-    #    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -Oz -s -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpic -static -static-libgcc -Oz -s  -Wno-write-strings -fno-exceptions -fmerge-all-constants -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s -Wl,-Bstatic ")
-
-    #    add_compile_definitions(DEBUG)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpic -static -Oz -flto -Wno-write-strings -fomit-frame-pointer -fno-exceptions -fmerge-all-constants -fdata-sections -ffunction-sections")
     add_compile_definitions(Release)
 endif()
 
@@ -53,9 +58,10 @@ set(
 
 add_executable( ${PROJECT_NAME} shaco.c ${SHACO_SOURCES})
 
-if(OpenSSL_FOUND)
-    message("Openssl found")
-    target_link_libraries( ${PROJECT_NAME} PRIVATE OpenSSL::Crypto OpenSSL::SSL)
-else()
-    message("Openssl Not found")
+if(COMPILE_ARCH STREQUAL "x86")
+    set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-m32")
+elseif(COMPILE_ARCH STREQUAL "x64")
+    set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-m64")
+elseif(COMPILE_ARCH STREQUAL "arm")
+    set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-march=armv7-a")
 endif()

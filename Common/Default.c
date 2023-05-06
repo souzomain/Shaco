@@ -64,3 +64,23 @@ char* generate_random_str(int length) {
     return str;
 }
 
+int s_atoi(char *str, bool *ok){
+    bool success = false;
+    int num = 0, signal = 1;
+    char *tmp = str;
+    if(*tmp == '-'){
+        signal = -1;
+        ++tmp;
+    }
+
+    while(*tmp != '\0'){
+        if(*tmp < '0' || *tmp > '9')
+            goto EXIT;
+        num = num * 10 + ( *tmp - '0');
+        ++tmp;
+    }
+    if(!str) goto EXIT;
+EXIT:
+    if(ok != NULL) *ok = success;
+    return num * signal;
+}

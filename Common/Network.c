@@ -1,41 +1,76 @@
 #include "Network.h"
+#include "Default.h"
+#include "shaco_stdlib.h"
+
 #include <netdb.h>
 #include <stdio.h>
 
-uint32_t s_ntohl(uint32_t netlong)
-{
-    uint8_t *p = (uint8_t *) &netlong;
-    return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | ((uint32_t)p[3] << 0);
+
+uint32_t s_ntohl(uint32_t netlong) {
+    uint32_t hostlong = 0;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        hostlong <<= 8;
+        hostlong |= (netlong >> (24 - i*8)) & 0xff;
+    }
+
+    return hostlong;
 }
 
 
-uint32_t s_htonl(uint32_t hostlong)
-{
-    uint8_t *p = (uint8_t *) &hostlong;
-    return ((uint32_t)p[0] << 0) | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
-}
 
+uint32_t s_htonl(uint32_t hostlong) {
+    uint32_t netlong = 0;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        netlong <<= 8;
+        netlong |= (hostlong & 0xff);
+        hostlong >>= 8;
+    }
+
+    return netlong;
+}
 
 uint16_t s_htons(uint16_t hostshort){
     return ((hostshort & 0xFF) << 8) | ((hostshort >> 8) & 0xFF);
 }
 
-uint32_t s_inet_addr(const char* ip_str){
-    uint32_t ip = 0;
-    int i;
-    int octet;
-    for (i = 0; ip_str[i] != '\0'; i++) {
-        if (ip_str[i] == '.') {
-            ip = (ip << 8) | octet;
+
+unsigned long s_inet_addr(const char *cp) {
+    unsigned long addr = 0;
+    int shift = 24;
+    int octet = 0;
+    int count = 0;
+
+    while (*cp) {
+        if (*cp >= '0' && *cp <= '9') {
+            octet = octet * 10 + (*cp - '0');
+            if (octet > 255) {
+                return INADDR_NONE;
+            }
+        } else if (*cp == '.') {
+            if (count > 3) {
+                return INADDR_NONE;
+            }
+            addr |= octet << shift;
             octet = 0;
-        } else if (ip_str[i] >= '0' && ip_str[i] <= '9') 
-            octet = (octet * 10) + (ip_str[i] - '0');
-        else 
+            shift -= 8;
+            count++;
+        } else {
             return INADDR_NONE;
-        
+        }
+        cp++;
     }
-    ip = (ip << 8) | octet;
-    return s_htonl(ip);
+
+    if (count != 3) {
+        return INADDR_NONE;
+    }
+
+    addr |= octet << shift;
+
+    return s_htonl(addr);
 }
 
 const char *s_inet_ntop(int af, const void *src, char *dst, socklen_t size)
@@ -48,18 +83,3 @@ const char *s_inet_ntop(int af, const void *src, char *dst, socklen_t size)
     return dst;
 }
 
-
-/*
-bool get_ip_host(char hostname[], char *dest) {
-    struct hostent *host = gethostbyname(hostname);
-    if(!host)
-        return false;
-    struct in_addr** addr_list = (struct in_addr**) host->h_addr_list;
-    if (addr_list[0] == NULL) 
-        return false;
-    
-    StringCopy(dest, s_inet_ntoa(*addr_list[0]));
-    dest[INET_ADDRSTRLEN-1] = '\0';
-    return true;
-}
-*/
