@@ -12,6 +12,13 @@
 
 #define MAX_RECV_SIZE 1024
 
+PHTTP_RESPONSE shaco_http_post(void *postfield, uint64_t postfield_size);
+int connect_server(char ip[], uint32_t port);
+bool send_all(int fd, uint8_t *buffer, uint64_t size);
+bool recv_all(int fd, uint8_t **buffer, uint64_t *size);
+PHTTP_RESPONSE http_send(char ip[], int port, char *header, void *postfield, uint64_t postfield_size);
+PHTTP_RESPONSE http_post( void *postfield, uint64_t postfield_size);
+void http_free(PHTTP_RESPONSE resp);
 
 const char *POST_HEADER_FORMAT = "%s %s HTTP/1.1\r\n"
                             "Host: %s:%d\r\n"
@@ -20,6 +27,21 @@ const char *POST_HEADER_FORMAT = "%s %s HTTP/1.1\r\n"
                             "Content-Length: %zu\r\n"
                             "Connection: close\r\n"
                             "\r\n";
+
+//change hash to dificult rules...
+PHTTP_RESPONSE shaco_http_post(void *postfield, uint64_t postfield_size) {
+    PHTTP_RESPONSE resp;
+    char *random_str = generate_random_str(generate_random_int(5, 30));
+    size_t newsize = postfield_size + StringLength(random_str);
+    void *new_postfield = MemCat(postfield, postfield_size, random_str, StringLength(random_str));
+    if(new_postfield){
+        resp = http_post(new_postfield, newsize);
+        shaco_free(new_postfield);
+    }else{
+        resp = http_post(postfield, postfield_size);
+    }
+    return resp;
+}
 
 int connect_server(char ip[], uint32_t port){
     int sock = -1;
@@ -124,7 +146,8 @@ PHTTP_RESPONSE http_send(char ip[], int port, char *header, void *postfield, uin
     return response;
 }
 
-PHTTP_RESPONSE http_post(void *postfield, uint64_t postfield_size) {
+
+PHTTP_RESPONSE http_post( void *postfield, uint64_t postfield_size) {
 
     if(!postfield)
         return NULL;

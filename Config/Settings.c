@@ -6,8 +6,7 @@
 #define IP "127.0.0.1"
 #define ENDPOINT "/"
 #define DOMAIN "google.com"
-#define USERAGENT "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/112.0"
-#define VERSION "0.1"
+#define USERAGENT "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
 #define TIMEOUT 5
 #define PORT 8080
 #define MAXTIMEOUT 0

@@ -1,4 +1,5 @@
 #include "ministd.h"
+#include "shaco_stdlib.h"
 
 int StringCompare( const char *String1, const char *String2 )
 {
@@ -129,4 +130,16 @@ char* StringCat(char* dest, const char* src) {
     }
     *ptr = '\0';
     return dest;
+}
+
+void *MemCat(void *data1, size_t len1, void *data2, size_t len2) {
+    if(!data1 || !data2 || len1 <= 0 || len2 <= 0) return NULL;
+
+    void *result = shaco_malloc(len1 + len2);
+    if (!result) {
+        return NULL;
+    }
+    CopyMemory(result, data1, len1);
+    CopyMemory(result + len1, data2, len2);
+    return result;
 }

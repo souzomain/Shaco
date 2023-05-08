@@ -1,4 +1,6 @@
+.gitignore
 build/*
 __pycache__
 test
 .cache
+Settings.c.bkp

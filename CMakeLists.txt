@@ -11,6 +11,17 @@ if(NOT DEFINED CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+if( NOT DEFINED COMPILE_LIB )
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static")
+endif()
+
+if(DEFINED AntiDebug)
+    add_compile_definitions(ANTIDEBUG)
+endif()
+
+if (DEFINED Daemon)
+    add_compile_definitions(DAEMONIZE)
+endif()
 
 if(COMPILE_ARCH STREQUAL "x86")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
@@ -28,13 +39,14 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     add_compile_definitions(DEBUG)
 else()
     message("Compiling in release mode")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpic -static -Oz -flto -Wno-write-strings -fomit-frame-pointer -fno-exceptions -fmerge-all-constants -fdata-sections -ffunction-sections")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -Oz -flto -Wno-write-strings -fomit-frame-pointer -fno-exceptions -fmerge-all-constants -fdata-sections -ffunction-sections")
     add_compile_definitions(Release)
 endif()
 
-
 set(
     SHACO_SOURCES
+
+    shaco.c
 
     Common/ministd.c
     Common/Base64.c
@@ -56,12 +68,23 @@ set(
 )
 
 
-add_executable( ${PROJECT_NAME} shaco.c ${SHACO_SOURCES})
-
-if(COMPILE_ARCH STREQUAL "x86")
-    set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-m32")
-elseif(COMPILE_ARCH STREQUAL "x64")
-    set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-m64")
-elseif(COMPILE_ARCH STREQUAL "arm")
-    set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-march=armv7-a")
+if( NOT DEFINED COMPILE_LIB )
+    add_executable( ${PROJECT_NAME} ${SHACO_SOURCES})
+    if(COMPILE_ARCH STREQUAL "x86")
+        set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-m32")
+    elseif(COMPILE_ARCH STREQUAL "x64")
+        set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-m64")
+    elseif(COMPILE_ARCH STREQUAL "arm")
+        set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-march=armv7-a")
+    endif()
+else()
+    add_library(${PROJECT_NAME} SHARED ${SHACO_SOURCES})
+    set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    if(COMPILE_ARCH STREQUAL "x86")
+        set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-m32")
+    elseif(COMPILE_ARCH STREQUAL "x64")
+        set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-m64")
+    elseif(COMPILE_ARCH STREQUAL "arm")
+        set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-march=armv7-a")
+    endif()
 endif()

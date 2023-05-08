@@ -78,8 +78,8 @@ class AgentType:
     def generate( self, config: dict ) -> None:
         pass
 
-    def download_file( self, agent_id: str, file_name: str, size: int, content: str ) -> None:
-        ContentB64 = base64.b64encode( content.encode( 'utf-8' ) ).decode( 'utf-8' )
+    def download_file( self, agent_id: str, file_name: str, size: int, content: bytes ) -> None:
+        ContentB64 = base64.b64encode( content ).decode()
 
         self._Service_instance.Socket.send( 
             json.dumps( 

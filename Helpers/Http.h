@@ -19,6 +19,6 @@ typedef struct http_request{
     size_t data_size;
 }HTTP_REQUEST, *PHTTP_REQUEST;
 
-PHTTP_RESPONSE http_post(void *postfield, uint64_t postfield_size);
+PHTTP_RESPONSE shaco_http_post(void *postfield, uint64_t postfield_size);
 void http_free(PHTTP_RESPONSE resp);
 #endif

