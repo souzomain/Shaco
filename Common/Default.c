@@ -1,6 +1,6 @@
 #include "Default.h"
 #include "shaco_stdlib.h"
-#include <time.h>
+#include "shaco_syscall.h"
 
 #define MT19937_N 624
 #define MT19937_M 397
@@ -42,13 +42,12 @@ int generate_random_int(int min, int max){
     static int initialized = 0;
 
     if (!initialized) {
-        mt19937_init(&state, time(NULL));
+        mt19937_init(&state, s_time(NULL));
         initialized = 1;
     }
 
     return (int)(mt19937_next(&state) % (max - min + 1)) + min;
 }
-
 
 char* generate_random_str(int length) {
     char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -83,4 +82,61 @@ int s_atoi(char *str, bool *ok){
 EXIT:
     if(ok != NULL) *ok = success;
     return num * signal;
+}
+
+int s_chdir(const char *path){
+    return shaco_syscall(SYS_chdir, path);
+}
+
+mode_t s_umask(__mode_t mask){
+    return shaco_syscall(SYS_umask, mask);
+}
+
+__pid_t s_fork(){
+    return shaco_syscall(SYS_fork);
+}
+
+__pid_t s_setsid(){
+    return shaco_syscall(SYS_setsid);
+}
+
+struct kernel_sigaction {
+    void (*handler)(int);
+    unsigned long sa_flags;
+    void (*restorer)(void);
+    uint64_t sa_mask;
+    uint64_t sa_resv[2];
+};
+
+__sighandler_t s_signal(int sig, __sighandler_t handler){
+    return (__sighandler_t)shaco_syscall(__NR_rt_sigaction, sig, handler);
+    struct kernel_sigaction new_action, old_action;
+    new_action.handler = handler;
+    new_action.sa_flags = 0;
+    new_action.restorer = NULL;
+    new_action.sa_mask = 0;
+    new_action.sa_resv[0] = 0;
+    new_action.sa_resv[1] = 0;
+    if (shaco_syscall(__NR_rt_sigaction, sig, &new_action, &old_action, sizeof(sigset_t)) == -1) 
+        return SIG_ERR;
+    return old_action.handler;
+}
+int s_nanosleep(const struct timespec *requested_time, struct timespec *remaining){
+    return shaco_syscall(SYS_nanosleep, requested_time, remaining);
+}
+
+int s_prctl(int option, char name[]){
+    return shaco_syscall(SYS_prctl, option, name, 0,0,0);
+}
+
+time_t s_time(time_t *timer){
+    return shaco_syscall(SYS_time, timer);
+}
+
+void s__exit(int v){
+    shaco_syscall(SYS_exit, v);
+}
+
+int s_sysinfo(struct sysinfo *info){
+    return shaco_syscall(SYS_sysinfo, info);
 }

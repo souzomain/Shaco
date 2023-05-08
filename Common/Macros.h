@@ -16,7 +16,6 @@
 
 #endif
 
-#include "ministd.h"
 #define ZeroMemory(x,y) MemSet(x,0,y)
 
 #endif

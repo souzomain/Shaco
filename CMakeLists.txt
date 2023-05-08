@@ -48,9 +48,8 @@ set(
 
     shaco.c
 
-    Common/ministd.c
-    Common/Base64.c
     Common/shaco_stdlib.c
+    Common/shaco_syscall.c
     Common/Default.c
     Common/Network.c
 

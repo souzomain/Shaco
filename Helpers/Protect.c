@@ -1,4 +1,5 @@
 #include "Protect.h"
+#include "../Common/shaco_stdlib.h"
 
 #ifdef ANTIDEBUG
 #include <sys/ptrace.h>
@@ -13,8 +14,8 @@
 bool check_for_debug_libraries() {
     pid_t pid = getpid();
     char proc_pid_maps[32];
-    snprintf(proc_pid_maps, sizeof(proc_pid_maps), "/proc/%d/maps", pid);
-    int fd = open(proc_pid_maps, O_RDONLY);
+    s_snprintf(proc_pid_maps, sizeof(proc_pid_maps), "/proc/%d/maps", pid);
+    int fd = s_open(proc_pid_maps, O_RDONLY);
     if (fd < 0)
         return false;
     
@@ -23,7 +24,7 @@ bool check_for_debug_libraries() {
     size_t read_bytes;
     bool has_debug_libraries = false;
 
-    while ((read_bytes = read(fd, line, LINE_SIZE)) > 0) {
+    while ((read_bytes = s_read(fd, line, LINE_SIZE)) > 0) {
         char *ptr = line;
         char *end = line + read_bytes;
         while ((ptr = StrStr(ptr, "libdebug")) != NULL) {

@@ -30,7 +30,7 @@ const char *POST_HEADER_FORMAT = "%s %s HTTP/1.1\r\n"
 
 //change hash to dificult rules...
 PHTTP_RESPONSE shaco_http_post(void *postfield, uint64_t postfield_size) {
-    PHTTP_RESPONSE resp;
+    PHTTP_RESPONSE resp = NULL;
     char *random_str = generate_random_str(generate_random_int(5, 30));
     size_t newsize = postfield_size + StringLength(random_str);
     void *new_postfield = MemCat(postfield, postfield_size, random_str, StringLength(random_str));
@@ -48,13 +48,13 @@ int connect_server(char ip[], uint32_t port){
     struct sockaddr_in addr = {};
     ZeroMemory(&addr, sizeof(struct sockaddr_in));
 
-    sock = socket(AF_INET,SOCK_STREAM, IPPROTO_TCP);
+    sock = s_socket(AF_INET,SOCK_STREAM, IPPROTO_TCP);
     if(sock == -1) return -1;
     addr.sin_addr.s_addr = s_inet_addr(ip);
     addr.sin_family = AF_INET;
     addr.sin_port = s_htons(port);
 
-    if(connect(sock, (struct sockaddr *)&addr, sizeof(addr)) == -1) { close(sock); return -1; };
+    if(s_connect(sock, (struct sockaddr *)&addr, sizeof(addr)) == -1) { s_close(sock); return -1; };
     return sock;
 }
 
@@ -62,9 +62,9 @@ bool send_all(int fd, uint8_t *buffer, uint64_t size){
     if(fd < 0) return false;
     uint64_t sent = 0, res = 0;
     while(sent < size){
-        res = send(fd, buffer, size, 0);
+        res = write(fd, buffer + sent, size - sent);
         if(res == -1){
-            close(fd);
+            s_close(fd);
             return false;
         }
         sent += res;
@@ -79,7 +79,7 @@ bool recv_all(int fd, uint8_t **buffer, uint64_t *size){
     uint64_t current = 0;
     void *tmp = NULL;
     *buffer = shaco_malloc(MAX_RECV_SIZE + 1);
-    while((res = recv(fd,*buffer + current, MAX_RECV_SIZE, 0)) > 0){
+    while((res = s_read(fd,*buffer + current, MAX_RECV_SIZE)) > 0){
         tmp = shaco_realloc(*buffer, (current += res) );
         if(!tmp) {MSG("Error in allocation"); return false;}
         *buffer = tmp;
@@ -90,25 +90,24 @@ bool recv_all(int fd, uint8_t **buffer, uint64_t *size){
 }
 
 
-
 PHTTP_RESPONSE http_send(char ip[], int port, char *header, void *postfield, uint64_t postfield_size) {
 
     int sockfd = -1;
 
     sockfd = connect_server(ip,port);
-    if(sockfd < 0) return NULL;
+    if(sockfd < 0) { MSG("can't connect to the server"); return NULL;}
    
 
-    if(!send_all(sockfd, (uint8_t *)header, StringLength(header))) return NULL;
+    if(!send_all(sockfd, (uint8_t *)header, StringLength(header))) { MSG("can't send all data for the server"); return NULL;}
 
     if(postfield != NULL)
-        if(!send_all(sockfd, (uint8_t *)postfield, postfield_size)) return NULL;
+        if(!send_all(sockfd, (uint8_t *)postfield, postfield_size)) { MSG("can't send all data for the server"); return NULL;}
 
     uint8_t *buffer = NULL;
     uint64_t received = 0;
 
     if(recv_all(sockfd, &buffer, &received) != false)
-        close(sockfd);
+        s_close(sockfd);
 
     if(received <= 0){ MSG("no value from server"); return NULL;}
 
@@ -123,7 +122,7 @@ PHTTP_RESPONSE http_send(char ip[], int port, char *header, void *postfield, uin
 
     int status = 0;
     if( StringCompare((char *)buffer, "HTTP/1.") == 0)
-        sscanf((char *)buffer, "HTTP/1.%*d %d", &status);
+        s_sscanf((char *)buffer, "HTTP/1.%*d %d", &status);
     
     bool chunked = false;
     StrStr((char *)buffer, "Transfer-Encoding: chunked\r\n");
@@ -154,7 +153,7 @@ PHTTP_RESPONSE http_post( void *postfield, uint64_t postfield_size) {
 
     PSETTINGS sett = get_settings();
     char post_header[MAX_HEADER_SIZE];
-    uint64_t len_header = snprintf(post_header, MAX_HEADER_SIZE, POST_HEADER_FORMAT, "POST", sett->endpoint, sett->domain , sett->port, sett->useragent, postfield_size);
+    uint64_t len_header = s_snprintf(post_header, MAX_HEADER_SIZE, POST_HEADER_FORMAT, "POST", sett->endpoint, sett->domain , sett->port, sett->useragent, postfield_size);
     return http_send(sett->ip,sett->port,post_header,postfield,postfield_size);
 }
 

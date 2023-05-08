@@ -38,7 +38,7 @@ POSCONFIG get_os_config(){
     struct sysinfo mem_info;
     struct utsname info;
 
-    if(sysinfo(&mem_info) != 0 ) goto EXIT_FAIL;
+    if(s_sysinfo(&mem_info) != 0 ) goto EXIT_FAIL;
     if(getlogin_r(cfg->user, LOGIN_NAME_MAX + 1) != 0) goto EXIT_FAIL;
     if(gethostname(cfg->hostname, sizeof(cfg->hostname)) != 0) goto EXIT_FAIL;
     if(!get_internal_ip(cfg->internal_ip)) {
@@ -73,13 +73,3 @@ void osconfig_free(POSCONFIG cfg){
     cfg = NULL;
 }
 
-/*
- *    internal_ip_t *ips = get_internal_ips();
-
-    for (int i = 0; ips[i].adapter_name[0] != '\0'; i++) {
-        printf("%d: %s - IP: %s\n", i+1, ips[i].adapter_name, ips[i].ip);
-    }
-
-    free(ips);
- *
- * */

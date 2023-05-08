@@ -27,6 +27,7 @@ Features of Shaco agent
 - Custom Memory Management
 - Minimal
 - No dependencies
+- InLine syscall
 
 # Running and Configuration/Compilation
 
