@@ -62,7 +62,7 @@ bool send_all(int fd, uint8_t *buffer, uint64_t size){
     if(fd < 0) return false;
     uint64_t sent = 0, res = 0;
     while(sent < size){
-        res = write(fd, buffer + sent, size - sent);
+        res = s_write(fd, buffer + sent, size - sent);
         if(res == -1){
             s_close(fd);
             return false;
