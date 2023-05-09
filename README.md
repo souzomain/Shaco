@@ -1,5 +1,9 @@
 # Shaco
 
+<p align="center">
+<img src="https://github.com/souzomain/Shaco/assets/92044641/0576991d-0676-4587-86f0-7107c914f76d" alt="Shaco Generation" />
+</p>
+
 Shaco is a minimal C linux agent for https://github.com/HavocFramework/Havoc.
 Shaco communicate with http to the server using hardcoded socket
 
