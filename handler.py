@@ -138,7 +138,7 @@ class CommandDownload(Command):
 class CommandUpload(Command):
     CommandId = COMMAND_UPLOAD
     Name = "upload"
-    Description = "upload file to agent. Don't try upload > 7000k"
+    Description = "upload file to agent. Don't try upload > 7k"
     Help = "upload <localfile> <remote put file>"
     NeedAdmin = False
     Params = [
