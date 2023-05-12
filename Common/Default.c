@@ -2,8 +2,19 @@
 #include "shaco_stdlib.h"
 #include "shaco_syscall.h"
 
+#include <dirent.h>
+#include <unistd.h>
+
 #define MT19937_N 624
 #define MT19937_M 397
+
+struct kernel_sigaction {
+    void (*handler)(int);
+    unsigned long sa_flags;
+    void (*restorer)(void);
+    uint64_t sa_mask;
+    uint64_t sa_resv[2];
+};
 
 typedef struct {
     uint32_t state[MT19937_N];
@@ -100,13 +111,18 @@ __pid_t s_setsid(){
     return shaco_syscall(SYS_setsid);
 }
 
-struct kernel_sigaction {
-    void (*handler)(int);
-    unsigned long sa_flags;
-    void (*restorer)(void);
-    uint64_t sa_mask;
-    uint64_t sa_resv[2];
-};
+__pid_t s_getpid(){
+    return (__pid_t)shaco_syscall(SYS_getpid);
+}
+
+__pid_t s_getppid(){
+    return (__pid_t)shaco_syscall(SYS_getppid);
+}
+
+__uid_t s_getuid(){
+    return (__uid_t)shaco_syscall(SYS_getuid);
+}
+
 
 __sighandler_t s_signal(int sig, __sighandler_t handler){
     return (__sighandler_t)shaco_syscall(__NR_rt_sigaction, sig, handler);
@@ -139,4 +155,9 @@ void s__exit(int v){
 
 int s_sysinfo(struct sysinfo *info){
     return shaco_syscall(SYS_sysinfo, info);
+}
+
+int s_uname(struct utsname *name){
+    if(!name) return -1;
+    return shaco_syscall(SYS_uname, name);
 }

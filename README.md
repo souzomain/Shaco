@@ -28,6 +28,7 @@ Features of Shaco agent
 - Minimal
 - No dependencies
 - InLine syscall
+- Hide Cmdline changing for a random process in the target
 
 # Running and Configuration/Compilation
 

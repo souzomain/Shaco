@@ -19,8 +19,12 @@ if(DEFINED AntiDebug)
     add_compile_definitions(ANTIDEBUG)
 endif()
 
-if (DEFINED Daemon)
+if(DEFINED Daemon)
     add_compile_definitions(DAEMONIZE)
+endif()
+
+if(DEFINED HIDE_CMDLINE)
+    add_compile_definitions(HIDE_CMDLINE)
 endif()
 
 if(COMPILE_ARCH STREQUAL "x86")

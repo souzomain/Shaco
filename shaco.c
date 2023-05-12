@@ -3,7 +3,7 @@
 #include "Core/Commands.h"
 #include "Config/Settings.h"
 
-int main(int argc, char **argv){
+int main(int argc, char *argv[]){
 
     if(!shaco_init(argv))  { MSG("Can't init..."); return 0; };
 
@@ -23,6 +23,8 @@ int main(int argc, char **argv){
     return 0;
 }
 
+#ifdef COMPILE_LIB
 __attribute__((constructor)) void lib_main(void){
     main(0,NULL);
 }
+#endif

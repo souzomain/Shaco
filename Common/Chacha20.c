@@ -1,5 +1,5 @@
 #include "Chacha20.h"
-#include "ministd.h"
+#include "shaco_stdlib.h"
 #include <assert.h>
 
 static uint32_t rotl32(uint32_t x, int n) 
