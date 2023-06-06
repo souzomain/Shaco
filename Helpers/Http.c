@@ -3,7 +3,6 @@
 #include "../Common/shaco_stdlib.h"
 #include "../Config/Settings.h"
 
-#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdio.h>

@@ -17,6 +17,7 @@ typedef struct{
     int port;
     int timeout;
     int max_timeout;
+    bool exit;
     bool ssl;
 }SETTINGS, *PSETTINGS;
 

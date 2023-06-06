@@ -281,7 +281,7 @@ class Shaco(AgentType):
                 self.builder_send_message(cliid, MessageType.Error, "make not found")
                 return
             if not which("clang"):
-                self.builder_send_message(cliid, MessageType.Error, "compiler not found")
+                self.builder_send_message(cliid, MessageType.Error, "Clang compiler not found")
                 return
             if not path.exists('./CMakeLists.txt'):
                 self.builder_send_message(cliid, MessageType.Error, "CMakeLists not found")

@@ -1,3 +1,4 @@
+#include "Common/Default.h"
 #include "Core/Core.h"
 #include "Core/Communication.h"
 #include "Core/Commands.h"
@@ -7,10 +8,10 @@ int main(int argc, char *argv[]){
 
     if(!shaco_init(argv))  { MSG("Can't init..."); return 0; };
 
+    MSG("Shaco initialized");
     PSETTINGS sett = get_settings();
     int time = sett->timeout;
 
-    MSG("Shaco initialized");
     do{
         boxboxbox();
         time = sett->timeout;

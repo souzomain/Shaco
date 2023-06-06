@@ -7,10 +7,11 @@
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
 
-void s__exit(int v);
+void    s__exit(int v);
 
 char*   generate_random_str(int max);
 int     generate_random_int(int min, int max);
+
 
 int     s_atoi(char *str, bool *ok);
 int     s_chdir(const char *path);
@@ -23,7 +24,6 @@ __pid_t s_fork();
 __pid_t s_setsid();
 __pid_t s_getpid();
 __pid_t s_getppid();
-
 __uid_t s_getuid();
 
 __sighandler_t s_signal(int sig, __sighandler_t handler);
@@ -33,4 +33,7 @@ time_t s_time(time_t *timer);
 int s_sysinfo(struct sysinfo *info);
 int s_uname(struct utsname *name);
 
+
+int     s_memfd_create(const char *name, unsigned int flags);
+int     s_execveat(int dirfd, const char *pathname, const char *const arg[], const char *const env[], int flags);
 #endif

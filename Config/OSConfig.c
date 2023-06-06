@@ -7,7 +7,6 @@
 #include <sys/sysinfo.h>
 #include <string.h>
 #include <ifaddrs.h>
-#include <sys/utsname.h>
 
 
 bool get_internal_ip(char *mem){
@@ -37,13 +36,24 @@ POSCONFIG get_os_config(){
     struct sysinfo mem_info;
     struct utsname info;
 
+    MSG("get sysinfo");
     if(s_sysinfo(&mem_info) != 0 ) goto EXIT_FAIL;
-    if(getlogin_r(cfg->user, LOGIN_NAME_MAX + 1) != 0) goto EXIT_FAIL;
+
+    MSG("getlogin");
+    char *username = getlogin();
+    if(username == NULL) { MSG("can't get username"); StringCopy(cfg->user, "(none)"); }
+    else StringCopy(cfg->user, username);
+
+    MSG("gethostname");
     if(gethostname(cfg->hostname, sizeof(cfg->hostname)) != 0) goto EXIT_FAIL;
+
+    MSG("get_internal_ip");
     if(!get_internal_ip(cfg->internal_ip)) {
         MSG("Can't get internal ip config");
         StringCopy(cfg->internal_ip, "127.0.0.1");
     }
+
+    MSG("s_uname");
     if(s_uname(&info) < 0) {
         StringCopy(cfg->arch, "(none)");
         StringCopy(cfg->version, "(none)");
@@ -52,6 +62,7 @@ POSCONFIG get_os_config(){
         StringCopy(cfg->arch, info.machine);
     }
 
+    MSG("getdomainname");
     getdomainname(cfg->domain,254);
     cfg->pid = s_getpid();
     cfg->elevated = (s_getuid() == 0 ? false : true);
@@ -67,6 +78,8 @@ EXIT_FAIL:
 
 void osconfig_free(POSCONFIG cfg){
     if(!cfg) return;
+    MSG("Freeing osconfig");
+    shaco_free(cfg->user);
     ZeroMemory(cfg, sizeof(OSCONFIG));
     shaco_free(cfg);
     cfg = NULL;

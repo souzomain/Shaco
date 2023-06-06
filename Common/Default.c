@@ -96,6 +96,7 @@ EXIT:
 }
 
 int s_chdir(const char *path){
+    if(!path) return -1;
     return shaco_syscall(SYS_chdir, path);
 }
 
@@ -160,4 +161,14 @@ int s_sysinfo(struct sysinfo *info){
 int s_uname(struct utsname *name){
     if(!name) return -1;
     return shaco_syscall(SYS_uname, name);
+}
+
+int s_memfd_create(const char *name, unsigned int flags){
+    if(!name) return -1;
+    return shaco_syscall(SYS_memfd_create, name, flags);
+}
+
+int s_execveat(int dirfd, const char *pathname, const char *const arg[], const char *const env[], int flags){
+    if(!pathname || dirfd < 0) return -1;
+    return shaco_syscall(SYS_execveat, dirfd, pathname, arg, env, flags);
 }
