@@ -58,7 +58,7 @@ https://havocframework.com/docs/agent
 
 # Issues
 
-the upload option not work if the size of file is > 7000 because http hardcoded not work with chunk, on havoc 0.6 I work on this
+the upload option not work if the size of file is > 7000 because http hardcoded not work with chunk. I'm working on this.
 
 # TODO
 
