@@ -1,4 +1,5 @@
 #include "Protect.h"
+#include "../Common/Network.h"
 #include "../Common/shaco_stdlib.h"
 
 #ifdef ANTIDEBUG
@@ -15,7 +16,7 @@ bool check_for_debug_libraries() {
     pid_t pid = getpid();
     char proc_pid_maps[32];
     s_snprintf(proc_pid_maps, sizeof(proc_pid_maps), "/proc/%d/maps", pid);
-    int fd = s_open(proc_pid_maps, O_RDONLY);
+    int fd = s_open(proc_pid_maps, O_RDONLY, 0);
     if (fd < 0)
         return false;
     
